@@ -58,5 +58,5 @@ window.CONFIG = {
 
   // --- Conexión con la planilla (Apps Script) ---
   // Pegá acá la URL que termina en /exec. Vacío = modo demo (carta de ejemplo, sin guardar datos).
-  urlAppsScript: ""
+  urlAppsScript: "https://script.google.com/macros/s/AKfycbw0NCG9RD5PKHf0hT0txH3HiJl1Atjq8xYIyPlJ0zjgrnTFySMO8vClJL_tTFsER_SlzQ/exec"
 };
