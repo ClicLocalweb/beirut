@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Reservar</title>
+  <link rel="stylesheet" href="css/estilos.css">
+  <script src="config.js"></script>
+</head>
+<body data-pagina="reserva">
+  <main class="contenedor">
+    <h1>Reservar mesa</h1>
+    <p class="bajada">Completá tus datos y te confirmamos por WhatsApp.</p>
+
+    <form id="form" class="tarjeta" novalidate>
+      <label for="nombre">Nombre y apellido</label>
+      <input id="nombre" name="nombre" autocomplete="name" required maxlength="80">
+
+      <label for="telefono">Teléfono (WhatsApp)</label>
+      <input id="telefono" name="telefono" type="tel" inputmode="numeric" autocomplete="tel" placeholder="Ej: 351 123 4567" required>
+
+      <div class="fila">
+        <div>
+          <label for="dia">Día</label>
+          <input id="dia" name="dia" type="date" required>
+        </div>
+        <div>
+          <label for="hora">Hora</label>
+          <select id="hora" name="hora" required></select>
+        </div>
+      </div>
+
+      <label for="personas">Cantidad de personas</label>
+      <select id="personas" name="personas" required></select>
+
+      <label>Tu cumpleaños <span class="opcional">(opcional, para saludarte)</span></label>
+      <div class="fila">
+        <select id="cumple-dia" aria-label="Día de cumpleaños"><option value="">Día</option></select>
+        <select id="cumple-mes" aria-label="Mes de cumpleaños"><option value="">Mes</option></select>
+      </div>
+
+      <label class="casilla">
+        <input type="checkbox" id="promos" name="promos">
+        <span>Acepto recibir promociones y novedades por WhatsApp.</span>
+      </label>
+
+      <div id="mensaje" class="aviso oculto"></div>
+      <button class="boton" type="submit" id="enviar" style="margin-top:18px">Pedir reserva</button>
+    </form>
+
+    <div id="listo" class="oculto">
+      <div class="aviso ok"><strong>¡Recibimos tu pedido de reserva!</strong><br>
+        El local te va a confirmar a la brevedad. La reserva queda firme cuando te confirmen.</div>
+      <div class="tarjeta" id="resumen"></div>
+      <a class="boton whatsapp" id="btn-avisar" target="_blank" rel="noopener">Avisar por WhatsApp (más rápido)</a>
+      <a class="boton secundario" href="carta.html">Ver la carta mientras tanto</a>
+    </div>
+  </main>
+
+  <script src="js/app.js"></script>
+  <script>
+    var C = window.CONFIG, R = C.reservas;
+    var $ = function (id) { return document.getElementById(id); };
+
+    // Fechas posibles
+    function aISO(d) {
+      return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+    }
+    var hoy = new Date();
+    var max = new Date(); max.setDate(max.getDate() + R.diasAnticipacionMax);
+    $("dia").min = aISO(hoy);
+    $("dia").max = aISO(max);
+
+    // Horarios
+    function minutos(h) { var p = h.split(":"); return Number(p[0]) * 60 + Number(p[1]); }
+    var opcionesHora = '<option value="">Elegí</option>';
+    var turnos = R.turnos || [{ desde: R.horaDesde, hasta: R.horaHasta }];
+    turnos.forEach(function (tu) {
+      for (var m = minutos(tu.desde); m <= minutos(tu.hasta); m += R.intervaloMinutos) {
+        var t = String(Math.floor(m / 60) % 24).padStart(2, "0") + ":" + String(m % 60).padStart(2, "0");
+        opcionesHora += '<option value="' + t + '">' + t + " h</option>";
+      }
+    });
+    $("hora").innerHTML = opcionesHora;
+
+    // Personas
+    var opcionesPersonas = '<option value="">Elegí</option>';
+    for (var p = 1; p <= R.maxPersonas; p++) opcionesPersonas += '<option value="' + p + '">' + p + (p === 1 ? " persona" : " personas") + "</option>";
+    $("personas").innerHTML = opcionesPersonas;
+
+    // Cumpleaños
+    var meses = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+    for (var d = 1; d <= 31; d++) $("cumple-dia").innerHTML += '<option value="' + String(d).padStart(2, "0") + '">' + d + "</option>";
+    meses.forEach(function (n, i) { $("cumple-mes").innerHTML += '<option value="' + String(i + 1).padStart(2, "0") + '">' + n + "</option>"; });
+
+    var nombresDias = ["domingo","lunes","martes","miércoles","jueves","viernes","sábado"];
+
+    function error(texto) {
+      var m = $("mensaje");
+      m.className = "aviso error";
+      m.textContent = texto;
+    }
+
+    $("form").addEventListener("submit", function (ev) {
+      ev.preventDefault();
+
+      var datos = {
+        nombre: $("nombre").value.trim(),
+        telefono: APP.soloNumeros($("telefono").value),
+        dia: $("dia").value,
+        hora: $("hora").value,
+        personas: $("personas").value,
+        cumpleanos: "",
+        promos: $("promos").checked
+      };
+      var cd = $("cumple-dia").value, cm = $("cumple-mes").value;
+
+      if (datos.nombre.length < 2) return error("Escribí tu nombre.");
+      if (datos.telefono.length < 8) return error("Revisá el teléfono: tiene que tener al menos 8 números.");
+      if (!datos.dia) return error("Elegí el día.");
+      if (datos.dia < $("dia").min || datos.dia > $("dia").max) return error("Elegí un día entre hoy y los próximos " + R.diasAnticipacionMax + " días.");
+      var diaSemana = new Date(datos.dia + "T12:00:00").getDay();
+      if (R.diasCerrado.indexOf(diaSemana) !== -1) return error("Los " + nombresDias[diaSemana] + " estamos cerrados. Elegí otro día.");
+      if (!datos.hora) return error("Elegí la hora.");
+      if (!datos.personas) return error("Elegí la cantidad de personas.");
+      if ((cd && !cm) || (!cd && cm)) return error("Para el cumpleaños completá día y mes, o dejá los dos vacíos.");
+      if (cd && cm) datos.cumpleanos = cd + "/" + cm;
+
+      $("mensaje").className = "aviso oculto";
+      $("enviar").disabled = true;
+      $("enviar").textContent = "Enviando…";
+
+      APP.api("reserva", datos).then(function (r) {
+        if (!r.ok) throw new Error(r.error || "Error desconocido");
+        var fecha = new Date(datos.dia + "T12:00:00").toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" });
+        $("resumen").innerHTML = "<strong>" + APP.esc(datos.nombre) + "</strong><br>" + APP.esc(fecha) + " a las " + datos.hora + " h<br>" +
+          datos.personas + (datos.personas === "1" ? " persona" : " personas");
+        $("btn-avisar").href = APP.linkWhatsapp("Hola " + C.nombre + ", pedí una reserva a nombre de " + datos.nombre +
+          " para el " + fecha + " a las " + datos.hora + " h, " + datos.personas + " personas.");
+        $("form").classList.add("oculto");
+        $("listo").classList.remove("oculto");
+        window.scrollTo(0, 0);
+      }).catch(function (e) {
+        error("No pudimos enviar la reserva (" + (e && e.message ? e.message : "sin conexión") + "). Probá de nuevo o escribinos por WhatsApp.");
+        $("enviar").disabled = false;
+        $("enviar").textContent = "Pedir reserva";
+      });
+    });
+  </script>
+</body>
+</html>

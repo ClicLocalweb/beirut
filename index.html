@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Inicio</title>
+  <link rel="stylesheet" href="css/estilos.css">
+  <script src="config.js"></script>
+</head>
+<body data-pagina="inicio">
+  <main class="contenedor">
+    <h1 id="nombre"></h1>
+    <p class="bajada" id="bajada"></p>
+
+    <a class="boton" href="reserva.html">Reservar mesa</a>
+    <a class="boton secundario" href="carta.html">Ver la carta</a>
+    <a class="boton secundario" href="visita.html">⭐ Sumar mi visita</a>
+    <a class="boton whatsapp" id="btn-whatsapp" target="_blank" rel="noopener">Escribinos por WhatsApp</a>
+
+    <h2>Dónde estamos</h2>
+    <div class="tarjeta">
+      <div class="dato"><span>📍</span><a id="direccion" target="_blank" rel="noopener"></a></div>
+    </div>
+
+    <h2>Horarios</h2>
+    <div class="tarjeta">
+      <ul class="horario" id="horario"></ul>
+    </div>
+  </main>
+
+  <script src="js/app.js"></script>
+  <script>
+    var C = window.CONFIG;
+    document.getElementById("nombre").textContent = C.nombre;
+    document.getElementById("bajada").textContent = C.bajada;
+    document.getElementById("btn-whatsapp").href = APP.linkWhatsapp();
+    var dir = document.getElementById("direccion");
+    dir.textContent = C.direccion;
+    dir.href = C.linkMapa;
+    document.getElementById("horario").innerHTML = C.horarioTexto.map(function (h) {
+      return "<li>" + APP.esc(h) + "</li>";
+    }).join("");
+  </script>
+</body>
+</html>

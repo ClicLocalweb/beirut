@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Sumar visita</title>
+  <link rel="stylesheet" href="css/estilos.css">
+  <script src="config.js"></script>
+</head>
+<body data-pagina="visita">
+  <main class="contenedor">
+    <h1>¡Gracias por venir!</h1>
+    <p class="bajada" id="bajada"></p>
+
+    <form id="form" class="tarjeta" novalidate>
+      <label for="telefono">Tu teléfono</label>
+      <input id="telefono" type="tel" inputmode="numeric" autocomplete="tel" placeholder="Ej: 351 123 4567" required>
+
+      <div id="campo-nombre">
+        <label for="nombre">Tu nombre <span class="opcional">(solo la primera vez)</span></label>
+        <input id="nombre" autocomplete="given-name" maxlength="60">
+      </div>
+
+      <label class="casilla">
+        <input type="checkbox" id="promos">
+        <span>Acepto recibir promociones y novedades por WhatsApp.</span>
+      </label>
+
+      <div id="mensaje" class="aviso oculto"></div>
+      <button class="boton" type="submit" id="enviar" style="margin-top:18px">Sumar mi visita</button>
+    </form>
+
+    <div id="resultado" class="oculto">
+      <div class="tarjeta">
+        <p class="centro" id="saludo"></p>
+        <p class="contador" id="contador"></p>
+        <div class="puntos" id="puntos"></div>
+        <div id="premio" class="premio oculto"></div>
+        <div id="ya-hoy" class="aviso info oculto">Hoy ya sumaste tu visita. ¡Te esperamos la próxima!</div>
+      </div>
+
+      <div class="tarjeta centro">
+        <p style="margin-top:0"><strong>¿Te gustó?</strong> Tu reseña en Google nos ayuda muchísimo.</p>
+        <a class="boton google" id="btn-resena" target="_blank" rel="noopener">⭐ Dejar una reseña en Google</a>
+      </div>
+      <a class="boton secundario" href="carta.html">Ver la carta</a>
+    </div>
+  </main>
+
+  <script src="js/app.js"></script>
+  <script>
+    var C = window.CONFIG, N = C.visitasParaBeneficio;
+    var $ = function (id) { return document.getElementById(id); };
+    $("bajada").textContent = "Sumá tu visita: a las " + N + " visitas te ganás " + C.textoBeneficio + ".";
+    if (C.linkResenaGoogle) $("btn-resena").href = C.linkResenaGoogle;
+    else $("btn-resena").parentNode.classList.add("oculto");
+
+    // Recordar el teléfono en este celular (comodidad, no es obligatorio)
+    function leer(k) { try { return localStorage.getItem(k) || ""; } catch (e) { return ""; } }
+    function guardar(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+    $("telefono").value = leer("telefono");
+    if (leer("telefono")) $("campo-nombre").classList.add("oculto");
+
+    function error(t) { $("mensaje").className = "aviso error"; $("mensaje").textContent = t; }
+
+    // En modo demo se simula con el navegador
+    function demo(datos) {
+      var hoy = new Date().toDateString();
+      var visitas = Number(leer("demo_visitas")) || 0;
+      var yaHoy = leer("demo_ultima") === hoy;
+      if (!yaHoy) { visitas++; guardar("demo_visitas", visitas); guardar("demo_ultima", hoy); }
+      return Promise.resolve({ ok: true, visitas: visitas, yaSumoHoy: yaHoy, nombre: datos.nombre, umbral: N });
+    }
+
+    $("form").addEventListener("submit", function (ev) {
+      ev.preventDefault();
+      var datos = {
+        telefono: APP.soloNumeros($("telefono").value),
+        nombre: $("nombre").value.trim(),
+        promos: $("promos").checked
+      };
+      if (datos.telefono.length < 8) return error("Revisá el teléfono: tiene que tener al menos 8 números.");
+
+      $("mensaje").className = "aviso oculto";
+      $("enviar").disabled = true;
+      $("enviar").textContent = "Sumando…";
+
+      (C.urlAppsScript ? APP.api("visita", datos) : demo(datos)).then(function (r) {
+        if (!r.ok) throw new Error(r.error || "Error");
+        guardar("telefono", datos.telefono);
+        mostrar(r);
+      }).catch(function () {
+        error("No pudimos sumar la visita. Probá de nuevo en un momento.");
+        $("enviar").disabled = false;
+        $("enviar").textContent = "Sumar mi visita";
+      });
+    });
+
+    function mostrar(r) {
+      var umbral = r.umbral || N;
+      // Ciclo: 1..umbral, después vuelve a empezar
+      var enCiclo = r.visitas === 0 ? 0 : ((r.visitas - 1) % umbral) + 1;
+      var gano = enCiclo === umbral && !r.yaSumoHoy;
+
+      $("saludo").textContent = r.nombre ? "Hola, " + r.nombre + "." : "¡Hola!";
+      $("contador").textContent = enCiclo + " de " + umbral;
+      var html = "";
+      for (var i = 1; i <= umbral; i++) html += '<div class="punto' + (i <= enCiclo ? " lleno" : "") + '">' + (i <= enCiclo ? "✓" : i) + "</div>";
+      $("puntos").innerHTML = html;
+
+      if (gano) {
+        $("premio").textContent = "🎉 ¡Ganaste " + C.textoBeneficio + "! Mostrale esta pantalla al mozo.";
+        $("premio").classList.remove("oculto");
+      }
+      if (r.yaSumoHoy) $("ya-hoy").classList.remove("oculto");
+
+      $("form").classList.add("oculto");
+      $("resultado").classList.remove("oculto");
+      window.scrollTo(0, 0);
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Carta</title>
+  <link rel="stylesheet" href="css/estilos.css">
+  <script src="config.js"></script>
+</head>
+<body data-pagina="carta">
+  <main class="contenedor">
+    <h1>Carta</h1>
+    <p class="bajada">Precios en pesos. Pueden cambiar sin aviso.</p>
+    <div id="estado" class="aviso info">Cargando la carta…</div>
+    <div id="carta"></div>
+    <a class="boton" href="reserva.html" style="margin-top:24px">Reservar mesa</a>
+  </main>
+
+  <script src="js/app.js"></script>
+  <script src="js/carta-demo.js"></script>
+  <script>
+    var estado = document.getElementById("estado");
+
+    function precio(p) {
+      var n = Number(String(p).replace(/[^\d.,]/g, "").replace(/\./g, "").replace(",", "."));
+      return isNaN(n) || n === 0 ? APP.esc(p) : "$ " + n.toLocaleString("es-AR");
+    }
+
+    function mostrar(items) {
+      var grupos = {}, orden = [];
+      items.forEach(function (it) {
+        if (!it.nombre) return;
+        var cat = it.categoria || "Otros";
+        if (!grupos[cat]) { grupos[cat] = []; orden.push(cat); }
+        grupos[cat].push(it);
+      });
+      document.getElementById("carta").innerHTML = orden.map(function (cat) {
+        return '<section class="categoria"><h2>' + APP.esc(cat) + '</h2><div class="tarjeta">' +
+          grupos[cat].map(function (it) {
+            var agotado = String(it.disponible).toLowerCase() === "no";
+            return '<div class="item' + (agotado ? " agotado" : "") + '"><div><h3>' + APP.esc(it.nombre) +
+              (agotado ? " (sin stock)" : "") + "</h3>" +
+              (it.descripcion ? "<p>" + APP.esc(it.descripcion) + "</p>" : "") +
+              '</div><div class="precio">' + precio(it.precio) + "</div></div>";
+          }).join("") + "</div></section>";
+      }).join("");
+      estado.classList.add("oculto");
+    }
+
+    if (!CONFIG.urlAppsScript) {
+      mostrar(window.CARTA_DEMO);
+    } else {
+      APP.api("carta").then(function (r) {
+        if (!r.ok) throw new Error(r.error);
+        mostrar(r.carta);
+      }).catch(function () {
+        estado.className = "aviso error";
+        estado.innerHTML = 'No pudimos cargar la carta. Probá de nuevo en un rato o <a href="' + APP.linkWhatsapp() + '">escribinos por WhatsApp</a>.';
+      });
+    }
+  </script>
+</body>
+</html>
